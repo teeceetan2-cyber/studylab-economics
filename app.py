@@ -229,7 +229,7 @@ def idr_input(label, min_val=0, max_val=1_000_000_000_000, step=100000, value=0,
 CATEGORIES = {
     "Perpajakan Indonesia": ["PPh 21 (TER)", "PPh 21 Tahunan", "PPN (VAT)", "PPh Final", "PPh Badan", "PBB", "Take Home Pay"],
     "Ekonomi Makro & Mikro": ["GDP Calculator", "Inflasi Kalkulator", "Break-Even Point", "Elastisitas Permintaan", "Depresiasi Aset", "Bunga Majemuk"],
-    "Basic Accounting": ["📋 Accounting Dashboard"],
+    "Basic Accounting": ["📋 Accounting Dashboard", "📐 Accounting Equation"],
 }
 
 def sidebar_nav():
@@ -1321,6 +1321,337 @@ def render_accounting_dashboard():
 
 
 # ═══════════════════════════════════════════════════════════════
+#  ACCOUNTING EQUATION
+# ═══════════════════════════════════════════════════════════════
+
+def render_accounting_equation():
+    st.header("📐 Accounting Equation")
+    st.markdown("""
+    The foundation of double-entry bookkeeping:
+    """)
+
+    # Core Equation Card
+    st.markdown(f"""
+    <div class="result-card" style="text-align:center;padding:24px;">
+        <span style="font-size:2em;font-weight:bold;color:#5ceb9a;">Assets</span>
+        <span style="font-size:2em;color:#7c8cf0;"> = </span>
+        <span style="font-size:2em;font-weight:bold;color:#f0ad4e;">Liabilities</span>
+        <span style="font-size:2em;color:#7c8cf0;"> + </span>
+        <span style="font-size:2em;font-weight:bold;color:#ff6b6b;">Equity</span>
+    </div>
+    """, unsafe_allow_html=True)
+
+    tab1, tab2, tab3 = st.tabs(["🧮 Calculator", "📊 Transaction Analyzer", "💡 Quick Reference"])
+
+    # ─── Tab 1: Calculator ───
+    with tab1:
+        st.markdown("Enter any **two** values to compute the third.")
+
+        col_a, col_l, col_e = st.columns(3)
+        with col_a:
+            assets = st.number_input("Assets (Rp)", min_value=0.0, value=0.0, step=100_000.0,
+                                     format="%f", key="ae_assets")
+        with col_l:
+            liabilities = st.number_input("Liabilities (Rp)", min_value=0.0, value=0.0, step=100_000.0,
+                                          format="%f", key="ae_liab")
+        with col_e:
+            equity = st.number_input("Equity (Rp)", min_value=0.0, value=0.0, step=100_000.0,
+                                     format="%f", key="ae_equity")
+
+        # Determine which values are filled
+        filled = sum([1 for v in [assets, liabilities, equity] if v > 0])
+
+        if filled >= 2:
+            # Solve for missing
+            if assets > 0 and liabilities > 0 and equity == 0:
+                equity = assets - liabilities
+                mode = "Equity = Assets − Liabilities"
+            elif assets > 0 and equity > 0 and liabilities == 0:
+                liabilities = assets - equity
+                mode = "Liabilities = Assets − Equity"
+            elif liabilities > 0 and equity > 0 and assets == 0:
+                assets = liabilities + equity
+                mode = "Assets = Liabilities + Equity"
+            else:
+                # All three filled — verify
+                mode = "Verification"
+
+            diff = assets - (liabilities + equity)
+            balanced = abs(diff) < 0.01
+
+            st.divider()
+
+            # Results
+            res_a, res_b, res_c = st.columns(3)
+            with res_a:
+                st.markdown(f"""<div class="result-card">
+                    <h4>Assets</h4>
+                    <div class="result-value">Rp {assets:,.0f}</div>
+                </div>""", unsafe_allow_html=True)
+            with res_b:
+                st.markdown(f"""<div class="result-card">
+                    <h4>Liabilities</h4>
+                    <div class="result-value">Rp {liabilities:,.0f}</div>
+                </div>""", unsafe_allow_html=True)
+            with res_c:
+                st.markdown(f"""<div class="result-card">
+                    <h4>Equity</h4>
+                    <div class="result-value">Rp {equity:,.0f}</div>
+                </div>""", unsafe_allow_html=True)
+
+            st.info(f"📌 {mode}")
+
+            # Balanced indicator
+            if balanced:
+                st.success(f"✅ **Equation is BALANCED** — Rp {assets:,.0f} = Rp {liabilities:,.0f} + Rp {equity:,.0f}")
+            else:
+                st.error(f"❌ **Equation is UNBALANCED** by Rp {abs(diff):,.0f}")
+                st.markdown(f"<div style='text-align:center;font-size:1.2em'>"
+                            f"Rp {liabilities + equity:,.0f} (L+E) ≠ Rp {assets:,.0f} (A)</div>",
+                            unsafe_allow_html=True)
+
+            # Horizontal stacked bar
+            fig = go.Figure()
+            fig.add_trace(go.Bar(
+                name="Liabilities",
+                x=["Equation"],
+                y=[liabilities],
+                marker_color="#f0ad4e",
+                text=f"Rp {liabilities:,.0f}" if liabilities > 0 else "",
+                textposition="inside",
+                hovertemplate="Liabilities: Rp %{y:,.0f}<extra></extra>"
+            ))
+            fig.add_trace(go.Bar(
+                name="Equity",
+                x=["Equation"],
+                y=[equity],
+                marker_color="#ff6b6b",
+                text=f"Rp {equity:,.0f}" if equity > 0 else "",
+                textposition="inside",
+                hovertemplate="Equity: Rp %{y:,.0f}<extra></extra>"
+            ))
+            fig.update_layout(
+                barmode="stack",
+                title="<b>Liabilities + Equity</b>",
+                height=250,
+                plot_bgcolor="rgba(0,0,0,0)",
+                paper_bgcolor="rgba(0,0,0,0)",
+                font_color="#ccc",
+                showlegend=True,
+                margin=dict(l=10, r=10, t=40, b=10),
+                xaxis=dict(showticklabels=True),
+                yaxis=dict(title="Rupiah", tickformat=",.0f")
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+            # Also show Assets bar for comparison
+            fig2 = go.Figure()
+            fig2.add_trace(go.Bar(
+                name="Assets",
+                x=["Assets"],
+                y=[assets],
+                marker_color="#5ceb9a",
+                text=f"Rp {assets:,.0f}",
+                textposition="inside",
+                hovertemplate="Assets: Rp %{y:,.0f}<extra></extra>"
+            ))
+            fig2.add_trace(go.Bar(
+                name="Liabilities + Equity",
+                x=["Liabilities + Equity"],
+                y=[liabilities + equity],
+                marker_color="#7c8cf0",
+                text=f"Rp {liabilities + equity:,.0f}",
+                textposition="inside",
+                hovertemplate="L+E: Rp %{y:,.0f}<extra></extra>"
+            ))
+            fig2.update_layout(
+                title="<b>Side-by-Side Comparison</b>",
+                height=250,
+                plot_bgcolor="rgba(0,0,0,0)",
+                paper_bgcolor="rgba(0,0,0,0)",
+                font_color="#ccc",
+                showlegend=True,
+                margin=dict(l=10, r=10, t=40, b=10),
+                yaxis=dict(title="Rupiah", tickformat=",.0f")
+            )
+            st.plotly_chart(fig2, use_container_width=True)
+
+        elif filled == 1:
+            st.warning("⚠️ Enter at least **two** values to compute the third.")
+        else:
+            st.info("👆 Enter values above to start.")
+
+    # ─── Tab 2: Transaction Analyzer ───
+    with tab2:
+        st.markdown("See how common transactions affect the accounting equation.")
+
+        TRANSACTIONS = [
+            ("Owner invests Rp 10,000,000 cash into business",
+             "Assets (Cash) +10,000,000", "Liabilities: 0", "Equity (Capital) +10,000,000",
+             10_000_000, 0, 10_000_000),
+            ("Purchase equipment for Rp 5,000,000 cash",
+             "Assets (Equipment) +5,000,000 | Assets (Cash) −5,000,000", "Liabilities: 0", "Equity: 0",
+             0, 0, 0),
+            ("Purchase supplies on credit Rp 2,000,000",
+             "Assets (Supplies) +2,000,000", "Liabilities (Accounts Payable) +2,000,000", "Equity: 0",
+             2_000_000, 2_000_000, 0),
+            ("Provide services for Rp 3,000,000 cash",
+             "Assets (Cash) +3,000,000", "Liabilities: 0", "Equity (Revenue) +3,000,000",
+             3_000_000, 0, 3_000_000),
+            ("Pay Rp 1,000,000 rent in cash",
+             "Assets (Cash) −1,000,000", "Liabilities: 0", "Equity (Expense) −1,000,000",
+             -1_000_000, 0, -1_000_000),
+            ("Borrow Rp 15,000,000 from bank",
+             "Assets (Cash) +15,000,000", "Liabilities (Notes Payable) +15,000,000", "Equity: 0",
+             15_000_000, 15_000_000, 0),
+            ("Owner withdraws Rp 2,000,000 for personal use",
+             "Assets (Cash) −2,000,000", "Liabilities: 0", "Equity (Drawings) −2,000,000",
+             -2_000_000, 0, -2_000_000),
+            ("Pay Rp 500,000 of accounts payable",
+             "Assets (Cash) −500,000", "Liabilities (Accounts Payable) −500,000", "Equity: 0",
+             -500_000, -500_000, 0),
+            ("Receive Rp 4,000,000 advance payment from customer",
+             "Assets (Cash) +4,000,000", "Liabilities (Unearned Revenue) +4,000,000", "Equity: 0",
+             4_000_000, 4_000_000, 0),
+            ("Depreciation of equipment Rp 800,000",
+             "Assets (Accum. Depr.) −800,000", "Liabilities: 0", "Equity (Depr. Expense) −800,000",
+             -800_000, 0, -800_000),
+        ]
+
+        # Running totals
+        if "ae_running_a" not in st.session_state:
+            st.session_state.ae_running_a = 0
+            st.session_state.ae_running_l = 0
+            st.session_state.ae_running_e = 0
+
+        col_tx, col_rn = st.columns([2, 1])
+
+        with col_tx:
+            selected = st.selectbox(
+                "Select a transaction to analyze:",
+                [t[0] for t in TRANSACTIONS],
+                index=None,
+                placeholder="Choose a transaction...",
+                key="ae_tx_select"
+            )
+
+        if selected:
+            tx = next(t for t in TRANSACTIONS if t[0] == selected)
+            _, da, dl, de, ca, cl, ce = tx
+
+            st.markdown(f"""<div class="result-card">
+                <h4>{selected}</h4>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:12px;">
+                    <div style="background:#1a2a1a;padding:12px;border-radius:8px;border:1px solid #3a6a3a;">
+                        <div style="color:#5ceb9a;font-weight:bold">📈 Assets</div>
+                        <div style="color:#ddd;font-size:0.9em;margin-top:4px">{da}</div>
+                        <div style="color:#5ceb9a;font-size:1.2em;font-weight:bold;margin-top:6px">Δ Rp {ca:+,.0f}</div>
+                    </div>
+                    <div style="background:#2a281a;padding:12px;border-radius:8px;border:1px solid #6a5a3a;">
+                        <div style="color:#f0ad4e;font-weight:bold">📉 Liabilities</div>
+                        <div style="color:#ddd;font-size:0.9em;margin-top:4px">{dl}</div>
+                        <div style="color:#f0ad4e;font-size:1.2em;font-weight:bold;margin-top:6px">Δ Rp {cl:+,.0f}</div>
+                    </div>
+                    <div style="background:#2a1a1a;padding:12px;border-radius:8px;border:1px solid #6a3a3a;">
+                        <div style="color:#ff6b6b;font-weight:bold">📊 Equity</div>
+                        <div style="color:#ddd;font-size:0.9em;margin-top:4px">{de}</div>
+                        <div style="color:#ff6b6b;font-size:1.2em;font-weight:bold;margin-top:6px">Δ Rp {ce:+,.0f}</div>
+                    </div>
+                </div>
+                <div style="text-align:center;margin-top:16px;padding:10px;background:#1a1d2a;border-radius:8px;">
+                    <span style="color:#7c8cf0;font-weight:bold">Equation: </span>
+                    <span style="color:#5ceb9a">ΔA = Rp {ca:+,.0f}</span>
+                    <span style="color:#7c8cf0"> = </span>
+                    <span style="color:#f0ad4e">ΔL = Rp {cl:+,.0f}</span>
+                    <span style="color:#7c8cf0"> + </span>
+                    <span style="color:#ff6b6b">ΔE = Rp {ce:+,.0f}</span>
+                </div>
+            </div>""", unsafe_allow_html=True)
+
+            with col_rn:
+                if st.button("➕ Apply to Running Total", use_container_width=True, key="ae_apply"):
+                    st.session_state.ae_running_a += ca
+                    st.session_state.ae_running_l += cl
+                    st.session_state.ae_running_e += ce
+
+        else:
+            with col_rn:
+                pass
+
+        # Running total display
+        st.divider()
+        st.subheader("📊 Running Total")
+
+        r_a = st.session_state.ae_running_a
+        r_l = st.session_state.ae_running_l
+        r_e = st.session_state.ae_running_e
+        r_balanced = abs(r_a - (r_l + r_e)) < 0.01
+
+        cols = st.columns(4)
+        cols[0].metric("Assets", f"Rp {r_a:,.0f}", delta=None)
+        cols[1].metric("Liabilities", f"Rp {r_l:,.0f}", delta=None)
+        cols[2].metric("Equity", f"Rp {r_e:,.0f}", delta=None)
+        cols[3].metric("Status", "✅ Balanced" if r_balanced else "❌ Unbalanced",
+                        delta=None if r_balanced else f"Off by Rp {abs(r_a - r_l - r_e):,.0f}")
+
+        if r_balanced and (r_a > 0 or r_l > 0 or r_e > 0):
+            st.success(f"✅ **A = L + E** → Rp {r_a:,.0f} = Rp {r_l:,.0f} + Rp {r_e:,.0f}")
+
+        c1, c2, _ = st.columns([1, 1, 3])
+        if c1.button("🔄 Reset", use_container_width=True, key="ae_reset"):
+            st.session_state.ae_running_a = 0
+            st.session_state.ae_running_l = 0
+            st.session_state.ae_running_e = 0
+            st.rerun()
+
+    # ─── Tab 3: Quick Reference ───
+    with tab3:
+        st.markdown("""
+        ### Key Formulas
+
+        | Formula | Description |
+        |---------|-------------|
+        | **A = L + E** | **Accounting Equation** — the foundation |
+        | **L = A − E** | Solve for Liabilities |
+        | **E = A − L** | Solve for Equity (Net Assets) |
+        | **E = C + R − Eₓ − D** | Expanded: Capital + Revenue − Expenses − Drawings |
+
+        ### Expanded Accounting Equation
+        """)
+        st.markdown(f"""
+        <div class="result-card" style="text-align:center;padding:20px;">
+            <span style="font-size:1.4em;font-weight:bold;color:#5ceb9a;">Assets</span>
+            <span style="font-size:1.4em;color:#7c8cf0;"> = </span>
+            <span style="font-size:1.4em;font-weight:bold;color:#f0ad4e;">Liabilities</span>
+            <span style="font-size:1.4em;color:#7c8cf0;"> + </span>
+            <span style="font-size:1.4em;color:#ff6b6b;">Owner's Capital</span>
+            <span style="font-size:1.4em;color:#7c8cf0;"> + </span>
+            <span style="font-size:1.4em;color:#5ceb9a;">Revenues</span>
+            <span style="font-size:1.4em;color:#7c8cf0;"> − </span>
+            <span style="font-size:1.4em;color:#f0ad4e;">Expenses</span>
+            <span style="font-size:1.4em;color:#7c8cf0;"> − </span>
+            <span style="font-size:1.4em;color:#ff6b6b;">Drawings</span>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown("""
+        ### Debit & Credit Rules
+
+        | Account Type | Increases | Decreases | Normal Balance |
+        |-------------|-----------|-----------|----------------|
+        | **Assets** | Debit (Dr) | Credit (Cr) | Debit |
+        | **Liabilities** | Credit (Cr) | Debit (Dr) | Credit |
+        | **Equity (Capital)** | Credit (Cr) | Debit (Dr) | Credit |
+        | **Revenue** | Credit (Cr) | Debit (Dr) | Credit |
+        | **Expenses** | Debit (Dr) | Credit (Cr) | Debit |
+
+        ### Golden Rule
+        > **For every transaction, total debits must equal total credits.**
+        > This ensures the accounting equation always stays balanced.
+        """)
+
+
+# ═══════════════════════════════════════════════════════════════
 
 def main():
     cat, topic = sidebar_nav()
@@ -1342,6 +1673,7 @@ def main():
         "Depresiasi Aset": render_depresiasi,
         "Bunga Majemuk": render_bunga_majemuk,
         "📋 Accounting Dashboard": render_accounting_dashboard,
+        "📐 Accounting Equation": render_accounting_equation,
     }
 
     if topic in render_map:
