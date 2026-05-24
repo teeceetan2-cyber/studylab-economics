@@ -229,7 +229,7 @@ def idr_input(label, min_val=0, max_val=1_000_000_000_000, step=100000, value=0,
 CATEGORIES = {
     "Perpajakan Indonesia": ["PPh 21 (TER)", "PPh 21 Tahunan", "PPN (VAT)", "PPh Final", "PPh Badan", "PBB", "Take Home Pay"],
     "Ekonomi Makro & Mikro": ["GDP Calculator", "Inflasi Kalkulator", "Break-Even Point", "Elastisitas Permintaan", "Depresiasi Aset", "Bunga Majemuk"],
-    "Basic Accounting": ["📝 General Journal", "📒 General Ledger", "⚖️ Trial Balance"],
+    "Basic Accounting": ["📋 Accounting Dashboard", "📝 General Journal", "📒 General Ledger", "⚖️ Trial Balance"],
 }
 
 def sidebar_nav():
@@ -1143,6 +1143,183 @@ def init_journal_state():
         st.session_state.company_type = "Service"
 
 
+# ─── Accounting Dashboard (All-in-One) ───
+
+def render_accounting_dashboard():
+    st.header("📋 Accounting Dashboard")
+    st.markdown("All-in-one: post journal entries, view ledger, and check trial balance on one page.")
+
+    init_journal_state()
+
+    company_type = st.radio("Company Type", ["Service", "Trading"], horizontal=True,
+                            help="Service: for service-based businesses. Trading: includes merchandising accounts.")
+    st.session_state.company_type = company_type
+    available_accounts = ALL_TRADING_ACCOUNTS if company_type == "Trading" else ALL_SERVICE_ACCOUNTS
+    filtered = [e for e in st.session_state.journal_entries if e.get("company_type") == company_type]
+
+    # ════════════════════════════════════════
+    # SECTION 1: New Journal Entry
+    # ════════════════════════════════════════
+    with st.expander("📝 New Journal Entry", expanded=True):
+        col_d1, col_d2 = st.columns(2)
+        with col_d1:
+            entry_date = st.date_input("Date", key="dash_date")
+        with col_d2:
+            entry_desc = st.text_input("Description", placeholder="e.g., Paid rent", key="dash_desc")
+
+        num_lines = st.number_input("Lines", min_value=2, max_value=6, value=2, step=1, key="dash_lines")
+
+        entry_lines = []
+        total_debit = 0
+        total_credit = 0
+
+        cols = st.columns([3, 2, 2])
+        cols[0].markdown("**Account**")
+        cols[1].markdown("**Debit**")
+        cols[2].markdown("**Credit**")
+
+        for i in range(int(num_lines)):
+            cols = st.columns([3, 2, 2])
+            with cols[0]:
+                acc = st.selectbox(f"A{i+1}", available_accounts, key=f"da_acc_{i}", label_visibility="collapsed")
+            with cols[1]:
+                deb = st.number_input(f"Db{i+1}", min_value=0, value=0, step=10000, format="%d", key=f"da_db_{i}", label_visibility="collapsed")
+            with cols[2]:
+                cred = st.number_input(f"Cr{i+1}", min_value=0, value=0, step=10000, format="%d", key=f"da_cr_{i}", label_visibility="collapsed")
+            entry_lines.append({"account": acc, "debit": deb, "credit": cred})
+            total_debit += deb
+            total_credit += cred
+
+        if total_debit > 0 or total_credit > 0:
+            diff = total_debit - total_credit
+            if abs(diff) < 1:
+                st.success(f"✅ Balanced: Debit = Credit = Rp {total_debit:,.0f}")
+            else:
+                st.error(f"❌ Unbalanced! Diff: Rp {abs(diff):,.0f}")
+
+        if st.button("📌 Post Entry", type="primary",
+                     disabled=abs(total_debit - total_credit) > 0.5 or total_debit == 0):
+            ref = f"JU-{st.session_state.journal_ref_counter:03d}"
+            st.session_state.journal_entries.append({
+                "date": entry_date.strftime("%Y-%m-%d"),
+                "description": entry_desc,
+                "entries": [e for e in entry_lines if e["debit"] > 0 or e["credit"] > 0],
+                "reference": ref,
+                "company_type": company_type,
+            })
+            st.session_state.journal_ref_counter += 1
+            st.success(f"✅ Entry {ref} posted!")
+            st.rerun()
+
+    # ════════════════════════════════════════
+    # SECTION 2: Journal Records
+    # ════════════════════════════════════════
+    st.divider()
+    st.subheader("📖 Journal Records")
+
+    if st.button("🗑️ Clear All", key="dash_clear"):
+        st.session_state.journal_entries = []
+        st.session_state.journal_ref_counter = 1
+        st.rerun()
+
+    if not filtered:
+        st.info("No entries yet. Post your first entry above!")
+    else:
+        for entry in filtered:
+            ref = entry["reference"]
+            with st.expander(f"**{ref}** — {entry['date']} | {entry['description']}", expanded=False):
+                rows = []
+                for line in entry["entries"]:
+                    rows.append({
+                        "Account": line["account"],
+                        "Debit": f"Rp {line['debit']:,.0f}" if line['debit'] > 0 else "",
+                        "Credit": f"Rp {line['credit']:,.0f}" if line['credit'] > 0 else "",
+                    })
+                st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
+                if st.button(f"Delete {ref}", key=f"dd_{ref}"):
+                    st.session_state.journal_entries = [
+                        e for e in st.session_state.journal_entries if e["reference"] != ref
+                    ]
+                    st.rerun()
+
+    # ════════════════════════════════════════
+    # SECTION 3: General Ledger Preview
+    # ════════════════════════════════════════
+    if filtered:
+        st.divider()
+        st.subheader("📒 Ledger Preview")
+
+        # Build ledger
+        ledger = {}
+        for entry in filtered:
+            for line in entry["entries"]:
+                acc = line["account"]
+                if acc not in ledger:
+                    ledger[acc] = []
+                ledger[acc].append({"date": entry["date"], "ref": entry["reference"],
+                                     "debit": line["debit"], "credit": line["credit"]})
+
+        sel_acc = st.selectbox("Select account to view", sorted(ledger.keys()), key="dash_ledger_acc")
+        if sel_acc:
+            entries = ledger[sel_acc]
+            balance = 0
+            rows = []
+            for e in entries:
+                balance += e["debit"] - e["credit"]
+                side = "Dr" if balance >= 0 else "Cr"
+                rows.append({
+                    "Date": e["date"], "Ref": e["ref"],
+                    "Debit": f"Rp {e['debit']:,.0f}" if e['debit'] > 0 else "",
+                    "Credit": f"Rp {e['credit']:,.0f}" if e['credit'] > 0 else "",
+                    "Balance": f"Rp {abs(balance):,.0f} {side}",
+                })
+            st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
+
+    # ════════════════════════════════════════
+    # SECTION 4: Trial Balance Preview
+    # ════════════════════════════════════════
+    if filtered:
+        st.divider()
+        st.subheader("⚖️ Trial Balance Preview")
+
+        balances = {}
+        for entry in filtered:
+            for line in entry["entries"]:
+                acc = line["account"]
+                if acc not in balances:
+                    balances[acc] = 0
+                balances[acc] += line["debit"] - line["credit"]
+
+        class_order = {"Assets": 0, "Liabilities": 1, "Equity": 2, "Revenue": 3, "COGS": 4, "Expenses": 5}
+        sorted_accs = sorted(balances.keys(),
+                             key=lambda a: (class_order.get(get_account_type(a, company_type), 99), a))
+
+        tb_rows = []
+        t_dr, t_cr = 0, 0
+        for acc in sorted_accs:
+            bal = balances[acc]
+            dr = bal if bal >= 0 else 0
+            cr = abs(bal) if bal < 0 else 0
+            t_dr += dr
+            t_cr += cr
+            tb_rows.append({
+                "Account": acc,
+                "Debit": f"Rp {dr:,.0f}" if dr > 0 else "",
+                "Credit": f"Rp {cr:,.0f}" if cr > 0 else "",
+            })
+
+        st.dataframe(pd.DataFrame(tb_rows), width="stretch", hide_index=True)
+
+        col_t1, col_t2, col_t3 = st.columns(3)
+        balanced = abs(t_dr - t_cr) < 1
+        with col_t1:
+            st.metric("Total Debit", f"Rp {t_dr:,.0f}")
+        with col_t2:
+            st.metric("Total Credit", f"Rp {t_cr:,.0f}")
+        with col_t3:
+            st.metric("Status", "✅ Balanced" if balanced else "❌ Unbalanced")
+
+
 # ─── General Journal ───
 
 def render_general_journal():
@@ -1502,6 +1679,7 @@ def main():
         "Elastisitas Permintaan": render_elastisitas,
         "Depresiasi Aset": render_depresiasi,
         "Bunga Majemuk": render_bunga_majemuk,
+        "📋 Accounting Dashboard": render_accounting_dashboard,
         "📝 General Journal": render_general_journal,
         "📒 General Ledger": render_general_ledger,
         "⚖️ Trial Balance": render_trial_balance,
