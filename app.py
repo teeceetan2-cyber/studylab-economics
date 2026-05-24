@@ -1485,6 +1485,76 @@ def render_accounting_equation():
     with tab2:
         st.markdown("See how common transactions affect the accounting equation.")
 
+        # ─── Manual Transaction Input ───
+        with st.expander("✏️ Input Manual Transaction", expanded=False):
+            st.markdown("Enter your own transaction and see how it affects the equation.")
+            mc1, mc2 = st.columns([2, 1])
+            with mc1:
+                manual_desc = st.text_input("Transaction description",
+                                            placeholder="e.g. Pay Rp 2,000,000 for advertising",
+                                            key="ae_manual_desc")
+            with mc2:
+                pass
+
+            mc3, mc4, mc5 = st.columns(3)
+            with mc3:
+                m_assets = st.number_input("Δ Assets (Rp)", value=0.0, step=100_000.0, format="%f",
+                                           key="ae_m_assets",
+                                           help="Positive = increase, Negative = decrease")
+            with mc4:
+                m_liab = st.number_input("Δ Liabilities (Rp)", value=0.0, step=100_000.0, format="%f",
+                                         key="ae_m_liab",
+                                         help="Positive = increase, Negative = decrease")
+            with mc5:
+                m_equity = st.number_input("Δ Equity (Rp)", value=0.0, step=100_000.0, format="%f",
+                                           key="ae_m_equity",
+                                           help="Positive = increase, Negative = decrease")
+
+            md_balanced = abs(m_assets - (m_liab + m_equity)) < 0.01
+            md_all_zero = abs(m_assets) < 0.01 and abs(m_liab) < 0.01 and abs(m_equity) < 0.01
+
+            if not md_all_zero and manual_desc:
+                st.markdown(f"""<div class="result-card">
+                    <h4>{manual_desc}</h4>
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:12px;">
+                        <div style="{'background:#1a2a1a;padding:12px;border-radius:8px;border:1px solid #3a6a3a;' if abs(m_assets) > 0 else 'background:#1a1d2a;padding:12px;border-radius:8px;border:1px solid #3a3f5c;'}">
+                            <div style="color:#5ceb9a;font-weight:bold">📈 Assets</div>
+                            <div style="color:#5ceb9a;font-size:1.2em;font-weight:bold;margin-top:4px">Δ Rp {m_assets:+,.0f}</div>
+                        </div>
+                        <div style="{'background:#2a281a;padding:12px;border-radius:8px;border:1px solid #6a5a3a;' if abs(m_liab) > 0 else 'background:#1a1d2a;padding:12px;border-radius:8px;border:1px solid #3a3f5c;'}">
+                            <div style="color:#f0ad4e;font-weight:bold">📉 Liabilities</div>
+                            <div style="color:#f0ad4e;font-size:1.2em;font-weight:bold;margin-top:4px">Δ Rp {m_liab:+,.0f}</div>
+                        </div>
+                        <div style="{'background:#2a1a1a;padding:12px;border-radius:8px;border:1px solid #6a3a3a;' if abs(m_equity) > 0 else 'background:#1a1d2a;padding:12px;border-radius:8px;border:1px solid #3a3f5c;'}">
+                            <div style="color:#ff6b6b;font-weight:bold">📊 Equity</div>
+                            <div style="color:#ff6b6b;font-size:1.2em;font-weight:bold;margin-top:4px">Δ Rp {m_equity:+,.0f}</div>
+                        </div>
+                    </div>
+                    <div style="text-align:center;margin-top:16px;padding:10px;background:#1a1d2a;border-radius:8px;">
+                        <span style="color:#7c8cf0;font-weight:bold">Equation: </span>
+                        <span style="color:#5ceb9a">ΔA = Rp {m_assets:+,.0f}</span>
+                        <span style="color:#7c8cf0"> = </span>
+                        <span style="color:#f0ad4e">ΔL = Rp {m_liab:+,.0f}</span>
+                        <span style="color:#7c8cf0"> + </span>
+                        <span style="color:#ff6b6b">ΔE = Rp {m_equity:+,.0f}</span>
+                    </div>
+                    <div style="text-align:center;margin-top:10px;">
+                        {'✅ <span style="color:#5ceb9a">Balanced — ΔA = ΔL + ΔE</span>' if md_balanced else '❌ <span style="color:#ff6b6b">Unbalanced — ΔA ≠ ΔL + ΔE (off by Rp ' + f'{abs(m_assets - m_liab - m_equity):,.0f}' + ')</span>'}
+                    </div>
+                </div>""", unsafe_allow_html=True)
+
+                if st.button("➕ Apply to Running Total", use_container_width=True, key="ae_manual_apply"):
+                    st.session_state.ae_running_a += m_assets
+                    st.session_state.ae_running_l += m_liab
+                    st.session_state.ae_running_e += m_equity
+                    st.rerun()
+            elif md_all_zero:
+                st.info("Enter a description and at least one Δ value above.")
+
+        st.divider()
+        st.markdown("### 📋 Predefined Transactions")
+        st.markdown("Or pick from common examples below:")
+
         TRANSACTIONS = [
             ("Owner invests Rp 10,000,000 cash into business",
              "Assets (Cash) +10,000,000", "Liabilities: 0", "Equity (Capital) +10,000,000",
