@@ -259,7 +259,7 @@ def render_pph21_ter():
                           help_text="Gaji pokok + tunjangan tetap sebelum potongan")
     with col2:
         ptkp_status = st.selectbox("Status PTKP", list(PTKP_TABLE.keys()), index=0,
-                                   help_text="Status kawin + tanggungan (K/1 = kawin 1 anak, TK/0 = tidak kawin 0 tanggungan, dll)")
+                                   help="Status kawin + tanggungan (K/1 = kawin 1 anak, TK/0 = tidak kawin 0 tanggungan, dll)")
 
     if gross > 0:
         pph_m, pph_y, cat, ter_rate = calc_pph21_ter(gross, ptkp_status)
@@ -354,7 +354,7 @@ def render_ppn():
                         help_text="Nilai sebelum PPN (harga barang/jasa)")
     with col2:
         ppn_rate = st.select_slider("Tarif PPN", options=[11, 12], value=11,
-                                    help_text="PPN 11% (kebanyakan BKP/JKP) atau 12% (barang mewah tertentu)")
+                                    help="PPN 11% (kebanyakan BKP/JKP) atau 12% (barang mewah tertentu)")
     with col3:
         ppn_rate_display = ppn_rate / 100
         jumlah_ppn = dpp * ppn_rate_display
@@ -546,7 +546,7 @@ def render_take_home_pay():
 
     with col1:
         ikut_bpjs_kes = st.checkbox("Ikut BPJS Kesehatan", value=True,
-                                     help_text="Potongan 1% dari gaji (4% ditanggung perusahaan)")
+                                     help="Potongan 1% dari gaji (4% ditanggung perusahaan)")
     with col2:
         ikut_bpjs_tk = st.checkbox("Ikut BPJS Ketenagakerjaan", value=True)
 
