@@ -220,8 +220,8 @@ def calc_pph21_annual(gross_yearly, ptkp_status):
     tax, breakdown = calc_progressive_tax(pkp)
     return tax, pkp, ptkp, biaya_jabatan, breakdown
 
-def idr_input(label, min_val=0, max_val=1e12, step=100000, value=0, help_text=""):
-    return st.number_input(label, min_value=min_val, max_value=max_val, step=step, value=value, format="%d", help=help_text)
+def idr_input(label, min_val=0, max_val=1_000_000_000_000, step=100000, value=0, help_text="", **kwargs):
+    return st.number_input(label, min_value=min_val, max_value=max_val, step=step, value=value, format="%d", help=help_text, **kwargs)
 
 
 # ─── Navigation ───
@@ -288,7 +288,7 @@ def render_pph21_ter():
         fig.update_layout(height=200, barmode='stack', showlegend=True,
                           plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
                           font_color='#ccc', xaxis_title="Rupiah", margin=dict(l=10, r=10, t=10, b=10))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     else:
         st.info("Masukkan gaji bruto untuk memulai perhitungan.")
 
@@ -330,7 +330,7 @@ def render_pph21_annual():
                 "PPh": fmt_idr(layer),
             })
         st.markdown("**Detail Tarif Progresif:**")
-        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
 
         # Donut chart
         fig = go.Figure(data=[go.Pie(
@@ -341,7 +341,7 @@ def render_pph21_annual():
             hole=0.4
         )])
         fig.update_layout(height=350, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color='#ccc')
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
 
 def render_ppn():
@@ -382,7 +382,7 @@ def render_ppn():
             increasing={"marker": {"color": "#5ceb9a"}},
         ))
         fig.update_layout(height=400, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color='#ccc')
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
         # Reverse calculation
         st.divider()
@@ -436,7 +436,7 @@ def render_pph_final():
             hole=0.4
         )])
         fig.update_layout(height=300, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color='#ccc')
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
 
 def render_pph_badan():
@@ -485,7 +485,7 @@ def render_pph_badan():
                 "Skema": ["Non-UMKM (22%)", "UMKM (0.5%)"],
                 "PPh Terutang": [fmt_idr(pkp_val * 0.22), fmt_idr(omzet * 0.005)],
             })
-            st.dataframe(tax_comparison, use_container_width=True, hide_index=True)
+            st.dataframe(tax_comparison, width="stretch", hide_index=True)
             st.caption("Perbandingan dengan skenario seandainya WP Badan memenuhi syarat UMKM untuk omzet yang sama.")
 
 
@@ -530,7 +530,7 @@ def render_pbb():
                              marker_color=['#5ceb9a', '#7c8cf0', '#f0ad4e', '#ff6b6b']))
         fig.update_layout(height=350, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
                           font_color='#ccc', yaxis_title="Rupiah", margin=dict(l=10, r=10, t=10, b=10))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
 
 def render_take_home_pay():
@@ -594,7 +594,7 @@ def render_take_home_pay():
             pot_rows.append({"Potongan": "BPJS TK (JHT+JP)", "Karyawan": fmt_idr(bpjs_tk_karyawan), "Perusahaan": fmt_idr(bpjs_tk_perusahaan), "Total": fmt_idr(bpjs_tk_karyawan + bpjs_tk_perusahaan)})
         pot_rows.append({"Potongan": "**TOTAL**", "Karyawan": f"**{fmt_idr(total_potongan)}**", "Perusahaan": f"**{fmt_idr(bpjs_kes_perusahaan + bpjs_tk_perusahaan)}**", "Total": f"**{fmt_idr(total_potongan + bpjs_kes_perusahaan + bpjs_tk_perusahaan)}**"})
 
-        st.dataframe(pd.DataFrame(pot_rows), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(pot_rows), width="stretch", hide_index=True)
 
         # Waterfall chart
         fig = go.Figure(go.Waterfall(
@@ -610,7 +610,7 @@ def render_take_home_pay():
             totals={"marker": {"color": "#7c8cf0"}},
         ))
         fig.update_layout(height=400, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color='#ccc')
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
 
 def render_gdp():
@@ -619,12 +619,12 @@ def render_gdp():
 
     col1, col2 = st.columns(2)
     with col1:
-        consumption = idr_input("Konsumsi (C) Rp", min_val=0, value=100e9, step=10e9, help_text="Pengeluaran konsumsi rumah tangga")
-        investment = idr_input("Investasi (I) Rp", min_val=0, value=50e9, step=10e9, help_text="Investasi bisnis & modal tetap")
+        consumption = idr_input("Konsumsi (C) Rp", min_val=0, value=100_000_000_000, step=10_000_000_000, help_text="Pengeluaran konsumsi rumah tangga")
+        investment = idr_input("Investasi (I) Rp", min_val=0, value=50_000_000_000, step=10_000_000_000, help_text="Investasi bisnis & modal tetap")
     with col2:
-        govt = idr_input("Pengeluaran Pemerintah (G) Rp", min_val=0, value=30e9, step=10e9)
-        export_val = idr_input("Ekspor (X) Rp", min_val=0, value=40e9, step=10e9)
-        import_val = idr_input("Impor (M) Rp", min_val=0, value=20e9, step=10e9)
+        govt = idr_input("Pengeluaran Pemerintah (G) Rp", min_val=0, value=30_000_000_000, step=10_000_000_000)
+        export_val = idr_input("Ekspor (X) Rp", min_val=0, value=40_000_000_000, step=10_000_000_000)
+        import_val = idr_input("Impor (M) Rp", min_val=0, value=20_000_000_000, step=10_000_000_000)
 
     if consumption or investment or govt:
         gdp = consumption + investment + govt + (export_val - import_val)
@@ -657,7 +657,7 @@ def render_gdp():
         fig.update_layout(height=200, barmode='stack', showlegend=True,
                           plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
                           font_color='#ccc', margin=dict(l=10, r=10, t=10, b=10))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
         # Pie chart
         fig2 = go.Figure(data=[go.Pie(
@@ -668,7 +668,7 @@ def render_gdp():
             marker=dict(colors=px.colors.qualitative.Set2)
         )])
         fig2.update_layout(height=400, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color='#ccc')
-        st.plotly_chart(fig2, use_container_width=True)
+        st.plotly_chart(fig2, width="stretch")
 
 
 def render_inflasi():
@@ -712,7 +712,7 @@ def render_inflasi():
                 }
             ))
             fig.update_layout(height=300, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color='#ccc')
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
             # Inflation impact
             st.divider()
@@ -757,7 +757,7 @@ def render_inflasi():
             df = pd.DataFrame(basket_data, columns=["Barang", "Harga Dulu", "Harga Sekarang"])
             df["Perubahan"] = df["Harga Sekarang"] - df["Harga Dulu"]
             df["%"] = (df["Perubahan"] / df["Harga Dulu"] * 100).round(2)
-            st.dataframe(df, use_container_width=True, hide_index=True)
+            st.dataframe(df, width="stretch", hide_index=True)
 
 
 def render_bep():
@@ -807,7 +807,7 @@ def render_bep():
                           plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
                           font_color='#ccc', xaxis_title="Units", yaxis_title="Rupiah",
                           hovermode="x unified")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     elif price <= var_cost:
         st.warning("⚠️ Harga jual harus lebih besar dari biaya variabel per unit.")
@@ -885,7 +885,7 @@ def render_elastisitas():
                           font_color='#ccc', xaxis_title="Quantity", yaxis_title="Price",
                           xaxis=dict(range=[0, max(q1, q2) * 1.5]),
                           yaxis=dict(range=[0, max(p1, p2) * 1.5]))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
         # Revenue comparison
         st.divider()
@@ -896,7 +896,7 @@ def render_elastisitas():
             "Kuantitas": [f"{q1:,.0f}", f"{q2:,.0f}", f"{delta_q:+,.0f}"],
             "Total Revenue": [f"Rp {tr1:,.0f}", f"Rp {tr2:,.0f}", f"Rp {tr2-tr1:+,.0f}"],
         })
-        st.dataframe(df_el, use_container_width=True, hide_index=True)
+        st.dataframe(df_el, width="stretch", hide_index=True)
 
 
 def render_depresiasi():
@@ -958,7 +958,7 @@ def render_depresiasi():
         with col_b:
             st.markdown(f"""<div class="result-card"><h4>Total Depresiasi</h4><div class="result-value">{fmt_idr(total_depr)}</div><div class="result-label">{useful_life} tahun</div></div>""", unsafe_allow_html=True)
 
-        st.dataframe(pd.DataFrame(schedule_rows), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(schedule_rows), width="stretch", hide_index=True)
 
         # Chart
         fig = go.Figure()
@@ -972,7 +972,7 @@ def render_depresiasi():
                           plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
                           font_color='#ccc', xaxis_title="Tahun", yaxis_title="Rupiah",
                           hovermode="x unified")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     elif cost <= salvage:
         st.warning("⚠️ Harga perolehan harus lebih besar dari nilai sisa.")
@@ -1060,7 +1060,7 @@ def render_bunga_majemuk():
 
             st.subheader("📋 Jadwal Amortisasi")
             with st.expander("Lihat detail angsuran"):
-                st.dataframe(pd.DataFrame(schedule), use_container_width=True, hide_index=True)
+                st.dataframe(pd.DataFrame(schedule), width="stretch", hide_index=True)
 
     # Compound growth chart
     years_range = np.arange(0, period + 0.5, 0.5)
@@ -1076,7 +1076,7 @@ def render_bunga_majemuk():
                       plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
                       font_color='#ccc', xaxis_title="Tahun", yaxis_title="Nilai (Rp)",
                       hovermode="x unified")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 
 # ═══════════════════════════════════════════════════════════════
