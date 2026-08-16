@@ -229,7 +229,7 @@ def idr_input(label, min_val=0, max_val=1_000_000_000_000, step=100000, value=0,
 CATEGORIES = {
     "Perpajakan Indonesia": ["PPh 21 (TER)", "PPh 21 Tahunan", "PPN (VAT)", "PPh Final", "PPh Badan", "PBB", "Take Home Pay"],
     "Ekonomi Makro & Mikro": ["GDP Calculator", "Inflasi Kalkulator", "Break-Even Point", "Elastisitas Permintaan", "Depresiasi Aset", "Bunga Majemuk"],
-    "Basic Accounting": ["📋 Accounting Dashboard", "📐 Accounting Equation"],
+    "Basic Accounting": ["📋 Accounting Dashboard", "📐 Accounting Equation", "🏦 Bank Reconciliation", "📒 Control Accounts"],
 }
 
 def sidebar_nav():
@@ -1583,6 +1583,155 @@ def render_accounting_equation():
         """)
 
 
+# ─── Bank Reconciliation (IGCSE 0452 §3.3) ────────────────
+
+def render_bank_reconciliation():
+    st.header("🏦 Bank Reconciliation")
+    st.markdown("Sesuai **IGCSE Accounting (0452) §3.3**. Selaraskan saldo *Cash Book* dengan *Bank Statement*.")
+    st.info("""
+    **Konsep kunci:**
+    - Saldo **debit** di Cash Book = uang kita (aset) = saldo **kredit** di Bank Statement.
+    - *Unpresented cheques* (cek belum cair): **tambah** ke saldo Cash Book.
+    - *Uncredited deposits* (setoran belum masuk): **kurang** dari saldo Bank Statement.
+    - Bank charges / direct debit / dishonoured cheque: **kurangi** saldo Cash Book (item belum dicatat).
+    """)
+
+    st.subheader("① Update Cash Book dulu")
+    cb_raw = st.number_input("Saldo Cash Book (sebelum update) ($)", value=3500.0, step=100.0, key="br_cb")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("**Item belum dicatat bisnis (kurangi saldo CB):**")
+        bank_charges = st.number_input("Bank charges ($)", 0.0, value=0.0, step=10.0, key="br_bc")
+        direct_debit = st.number_input("Direct debit ($)", 0.0, value=0.0, step=10.0, key="br_dd")
+        dishonoured = st.number_input("Dishonoured cheque ($)", 0.0, value=0.0, step=10.0, key="br_dh")
+    with col2:
+        st.markdown("**Kredit masuk (tambah saldo CB):**")
+        credit_transfer = st.number_input("Credit transfer / dividend ($)", 0.0, value=0.0, step=10.0, key="br_ct")
+        interest = st.number_input("Bank interest received ($)", 0.0, value=0.0, step=10.0, key="br_in")
+
+    cb_updated = cb_raw - bank_charges - direct_debit - dishonoured + credit_transfer + interest
+
+    st.subheader("② Reconciliation Statement")
+    unpresented = st.number_input("Unpresented cheques ($)", 0.0, value=1200.0, step=50.0, key="br_up")
+    uncredited = st.number_input("Uncredited deposits ($)", 0.0, value=800.0, step=50.0, key="br_uc")
+    bank_stmt = st.number_input("Saldo Bank Statement ($)", value=3900.0, step=100.0, key="br_bs")
+
+    # Build statement rows
+    reconciled = cb_updated + unpresented - uncredited
+    rows = [
+        ("Balance as per Cash Book (updated)", cb_updated, None),
+        ("Add: Unpresented cheques", unpresented, "+"),
+        ("Less: Uncredited deposits", uncredited, "-"),
+        ("Balance as per Bank Statement", reconciled, None),
+    ]
+    html = """<table style="width:100%;border-collapse:collapse;font-size:15px;margin-top:8px">
+        <tr style="background:#1a1a2e"><th style="border:1px solid #444;padding:8px;text-align:left">Details</th>
+        <th style="border:1px solid #444;padding:8px;text-align:right">$</th></tr>"""
+    for label, val, sign in rows:
+        bold = "font-weight:700;" if "Bank Statement" in label or "updated" in label else ""
+        vtxt = f"{val:,.0f}" if sign is None else f"({val:,.0f})" if sign == "-" else f"{val:,.0f}"
+        html += f'<tr><td style="border:1px solid #444;padding:8px;{bold}">{label}</td>' \
+                f'<td style="border:1px solid #444;padding:8px;text-align:right;{bold}">{vtxt}</td></tr>'
+    html += "</table>"
+    st.markdown(html, unsafe_allow_html=True)
+
+    if abs(reconciled - bank_stmt) < 0.5:
+        st.success(f"✅ Seimbang! Cash Book updated ${cb_updated:,.0f} + unpresented − uncredited = Bank Statement ${bank_stmt:,.0f}")
+    else:
+        diff = reconciled - bank_stmt
+        st.error(f"❌ Belum seimbang. Selisih ${diff:,.0f}. Periksa kembali item yang belum dicatat / timing difference.")
+
+    st.divider()
+    st.subheader("③ Latihan (soal dari website §3.3)")
+    st.markdown("**Soal:** Bank statement credit balance = $4,700. Unpresented cheques = $2,000, uncredited deposits = $800. "
+                "Berapa debit balance di Cash Book?")
+    if st.button("Tampilkan jawaban", key="br_ans"):
+        st.success("**$3,500** — CB + 2,000 − 800 = 4,700 → CB = 3,500. (Cocok dengan contoh di website)")
+
+
+# ─── Control Accounts (IGCSE 0452 §3.4) ──────────────────
+
+def render_control_accounts():
+    st.header("📒 Control Accounts")
+    st.markdown("Sesuai **IGCSE Accounting (0452) §3.4**. Bangun *Sales Ledger Control Account* (total Trade Receivables) secara interaktif.")
+    st.info("""
+    **Sales Ledger Control Account** bertindak sebagai total akun Trade Receivables.
+    - **Debit:** Balance b/d, Credit Sales, Dishonoured cheques, Contra (sisi Dr)
+    - **Credit:** Cash/Bank receipts, Sales Returns, Discounts Allowed, Contra (sisi Cr), Balance c/d
+    - *Contra entry* (set-off) dicatat **Cr** di Sales Ledger, **Dr** di Purchases Ledger.
+    """)
+
+    mode = st.radio("Jenis", ["Sales Ledger (Receivables)", "Purchases Ledger (Payables)"], horizontal=True, key="ca_mode")
+
+    if mode.startswith("Sales"):
+        st.subheader("Sales Ledger Control Account")
+        bal_bd = st.number_input("Balance b/d (Dr) ($)", 0.0, value=9000.0, step=100.0, key="ca_bd")
+        credit_sales = st.number_input("Credit Sales ($)", 0.0, value=12000.0, step=100.0, key="ca_cs")
+        dishonoured = st.number_input("Dishonoured Cheques (Dr) ($)", 0.0, value=300.0, step=10.0, key="ca_dh")
+        receipts = st.number_input("Cash/Bank Receipts (Cr) ($)", 0.0, value=5000.0, step=100.0, key="ca_rc")
+        sales_ret = st.number_input("Sales Returns (Cr) ($)", 0.0, value=400.0, step=10.0, key="ca_sr")
+        discounts = st.number_input("Discounts Allowed (Cr) ($)", 0.0, value=100.0, step=10.0, key="ca_ds")
+        contra = st.number_input("Contra (Cr di Sales Ledger) ($)", 0.0, value=0.0, step=10.0, key="ca_ct")
+
+        total_dr = bal_bd + credit_sales + dishonoured
+        total_cr_known = receipts + sales_ret + discounts + contra
+        bal_cd = total_dr - total_cr_known  # balancing figure (Dr side)
+
+        html = _t_account("Sales Ledger Control Account",
+                          [("Balance b/d", bal_bd), ("Credit Sales", credit_sales), ("Dishonoured Cheques", dishonoured)],
+                          [("Cash/Bank (Receipts)", receipts), ("Sales Returns", sales_ret),
+                           ("Discounts Allowed", discounts), ("Contra", contra), ("Balance c/d", bal_cd)])
+        st.markdown(html, unsafe_allow_html=True)
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Total Debit", f"${total_dr:,.0f}")
+        c2.metric("Total Kredit (s/d)", f"${total_cr_known:,.0f}")
+        c3.metric("Balance c/d (Dr)", f"${bal_cd:,.0f}")
+        st.caption("Contoh website: Balance b/d 9,000 + Sales 12,000 + Dishonoured 300 = 21,300; "
+                   "Receipts 5,000 + Returns 400 + Discounts 100 + Balance c/d 15,800 = 21,300 ✅")
+    else:
+        st.subheader("Purchases Ledger Control Account")
+        bal_bd = st.number_input("Balance b/d (Cr) ($)", 0.0, value=1450.0, step=100.0, key="ca_pbd")
+        credit_purch = st.number_input("Credit Purchases ($)", 0.0, value=0.0, step=100.0, key="ca_cp")
+        contra = st.number_input("Contra (Dr di Purchases Ledger) ($)", 0.0, value=0.0, step=10.0, key="ca_pct")
+        payments = st.number_input("Cash/Bank Payments (Dr) ($)", 0.0, value=0.0, step=100.0, key="ca_pp")
+        purch_ret = st.number_input("Purchase Returns (Dr) ($)", 0.0, value=0.0, step=10.0, key="ca_pr")
+        disc_recv = st.number_input("Discounts Received (Dr) ($)", 0.0, value=0.0, step=10.0, key="ca_dr")
+        interest = st.number_input("Interest charged (Cr) ($)", 0.0, value=0.0, step=10.0, key="ca_pi")
+
+        total_cr = bal_bd + credit_purch + interest
+        total_dr_known = payments + purch_ret + disc_recv + contra
+        bal_cd = total_cr - total_dr_known  # balancing figure (Cr side)
+
+        html = _t_account("Purchases Ledger Control Account",
+                          [("Cash/Bank (Payments)", payments), ("Purchase Returns", purch_ret),
+                           ("Discounts Received", disc_recv), ("Contra", contra), ("Balance c/d", bal_cd)],
+                          [("Balance b/d", bal_bd), ("Credit Purchases", credit_purch), ("Interest Charged", interest)])
+        st.markdown(html, unsafe_allow_html=True)
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Total Kredit", f"${total_cr:,.0f}")
+        c2.metric("Total Debit (s/d)", f"${total_dr_known:,.0f}")
+        c3.metric("Balance c/d (Cr)", f"${bal_cd:,.0f}")
+        st.caption("Contoh website: Balance b/d 1,450 Cr − discount 25 (Dr) + interest 60 (Cr) = 1,485 Cr ✅")
+
+
+def _t_account(title, debits, credits):
+    """debits/credits: list of (label, amount). Renders a two-column T-account."""
+    def rows(items):
+        return "".join(f'<tr><td style="border:1px solid #444;padding:6px 10px">{l}</td>'
+                       f'<td style="border:1px solid #444;padding:6px 10px;text-align:right">{a:,.0f}</td></tr>'
+                       for l, a in items)
+    return f"""<div style="font-size:14px;margin-top:10px">
+      <div style="text-align:center;font-weight:700;margin-bottom:6px">{title}</div>
+      <table style="width:100%;border-collapse:collapse">
+        <tr><th style="border:1px solid #444;padding:6px;background:#1a1a2e">Debit (Dr)</th>
+            <th style="border:1px solid #444;padding:6px;background:#1a1a2e">Credit (Cr)</th></tr>
+        <tr style="vertical-align:top"><td style="border:1px solid #444">
+          <table style="width:100%">{rows(debits)}</table></td>
+          <td style="border:1px solid #444">
+          <table style="width:100%">{rows(credits)}</table></td></tr>
+      </table></div>"""
+
+
 # ═══════════════════════════════════════════════════════════════
 
 def main():
@@ -1606,6 +1755,8 @@ def main():
         "Bunga Majemuk": render_bunga_majemuk,
         "📋 Accounting Dashboard": render_accounting_dashboard,
         "📐 Accounting Equation": render_accounting_equation,
+        "🏦 Bank Reconciliation": render_bank_reconciliation,
+        "📒 Control Accounts": render_control_accounts,
     }
 
     if topic in render_map:
